@@ -1,6 +1,6 @@
 from nutsort.game import NutSortGame
 import torch.optim as optim
-from nutsort.actor_critic import ActorCriticAgent, ActorCriticNetwork
+from nutsort.actor_critic import ActorCriticNetwork, ActorCriticAgent
 from sys import argv
 
 
@@ -27,7 +27,14 @@ def train(n_colors, n_episodes):
     output_size = game.num_tubes ** 2  # The number of valid actions
 
     action_critic_network = ActorCriticNetwork(input_size, game.num_tubes)
-    optimizer = optim.Adam(action_critic_network.parameters(), lr=0.0000001)
+    # Create parameter groups with different learning rates
+    critic_params = {'params': [p for n, p in action_critic_network.named_parameters() if 'critic' in n], 'lr': 1e-3}
+    actor_params = {'params': [p for n, p in action_critic_network.named_parameters() if 'actor' in n], 'lr': 3e-3}
+    other_params = {'params': [p for n, p in action_critic_network.named_parameters() 
+                          if 'actor' not in n and 'critic' not in n], 'lr': 2e-3}
+
+    optimizer = optim.Adam([critic_params, actor_params, other_params])
+    # optimizer = optim.Adam(action_critic_network.parameters(), lr=0.0000001)
 
     # Initialize the RL agent
     agent = ActorCriticAgent(game, action_critic_network, optimizer)

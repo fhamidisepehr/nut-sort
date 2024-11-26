@@ -309,33 +309,62 @@ class ActorCriticAgent:
                 total_loss = total_loss / batch_size
                 self.optimizer.zero_grad()
                 total_loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
+                # torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
+                # torch.nn.utils.clip_grad_value_(self.network.parameters())
+                # Print gradient statistics before clipping
+                grad_stats = {}
+                for name, param in self.network.named_parameters():
+                    if param.grad is not None:
+                        grad_stats[name] = {
+                            'mean': param.grad.abs().mean().item(),
+                            'max': param.grad.abs().max().item(),
+                            'min': param.grad.abs().min().item()
+                        }
+                        print(f"{name}: mean={grad_stats[name]['mean']:.2e}, max={grad_stats[name]['max']:.2e}")
+                
+                # # Try different clipping values
+                # clip_value = 0.5  # Start with this value
+                # torch.nn.utils.clip_grad_value_(self.network.parameters(), clip_value)
+                
+                # Clip critic gradients (larger values)
+                critic_params = [p for n, p in self.network.named_parameters() if 'critic' in n]
+                torch.nn.utils.clip_grad_value_(critic_params, clip_value=1.0)
+
+                # Clip actor gradients (medium values)
+                actor_params = [p for n, p in self.network.named_parameters() if 'actor' in n]
+                torch.nn.utils.clip_grad_value_(actor_params, clip_value=0.5)
+
+                # Clip other network gradients (smaller values as they have smaller gradients)
+                other_params = [p for n, p in self.network.named_parameters() 
+                            if 'actor' not in n and 'critic' not in n]
+                torch.nn.utils.clip_grad_value_(other_params, clip_value=0.3)
+                
                 self.optimizer.step()
                 total_loss = 0
                 
             if (episode + 1) % eval_interval == 0:
                 self.evaluate_actor_critic(episode)
                 
-    def train_old(self, episodes=1000):
-            self.evaluate_policy(0)
-            batch_size = eval_interval = 256
-            self.network.train()
+    # def train_old(self, episodes=1000):
+    #         self.evaluate_policy(0)
+    #         batch_size = eval_interval = 256
+    #         self.network.train()
             
-            total_loss = 0
-            for episode in range(episodes):
-                saved_log_probs, values, rewards, *_ = self.get_episode(episode)
+    #         total_loss = 0
+    #         for episode in range(episodes):
+    #             saved_log_probs, values, rewards, *_ = self.get_episode(episode)
                 
-                # Calculate loss
-                episode_loss = self.calculate_actor_critic_loss(saved_log_probs, values, rewards)
-                total_loss += episode_loss
+    #             # Calculate loss
+    #             episode_loss = self.calculate_actor_critic_loss(saved_log_probs, values, rewards)
+    #             total_loss += episode_loss
 
-                if (episode + 1) % batch_size == 0:
-                    self.optimizer.zero_grad()
-                    total_loss = total_loss.mean()
-                    total_loss.backward()
-                    torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
-                    self.optimizer.step()
-                    total_loss = 0
+    #             if (episode + 1) % batch_size == 0:
+    #                 self.optimizer.zero_grad()
+    #                 total_loss = total_loss.mean()
+    #                 total_loss.backward()
+    #                 torch.nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=1.0)
+    #                 self.optimizer.step()
+    #                 total_loss = 0
 
-                if (episode + 1) % eval_interval == 0:
-                    self.evaluate_policy(episode)
+    #             if (episode + 1) % eval_interval == 0:
+    #                 self.evaluate_policy(episode)
