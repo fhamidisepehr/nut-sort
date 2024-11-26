@@ -288,7 +288,7 @@ class ActorCriticAgent:
         # Critic (value) loss using TD targets
         critic_loss = F.mse_loss(values.squeeze(), td_targets.detach())
     
-        return actor_loss + 0.5 * critic_loss  #combined  loss
+        return 1.0 * actor_loss + 0.2 * critic_loss  #combined  loss
     
     # Then your training loop becomes cleaner:
     def train(self, episodes=1000):
